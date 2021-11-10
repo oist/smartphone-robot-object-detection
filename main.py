@@ -21,13 +21,13 @@ print("started loading data set")
 
 # split data into training and testing set
 if os.path.exists('./train/images'):
-  os.removedirs('./train/images')
+  shutil.rmtree('./train/images')
 if os.path.exists('./train/annotations'):
-  os.removedirs('./train/annotations')
+  shutil.rmtree('./train/annotations')
 if os.path.exists('./test/images'):
-  os.removedirs('./test/images')
+  shutil.rmtree('./test/images')
 if os.path.exists('./test/annotations'):
-  os.removedirs('./test/annotations')
+  shutil.rmtree('./test/annotations')
 
 os.makedirs('./train/images')
 os.makedirs('./train/annotations')
@@ -45,7 +45,7 @@ for i, image_path in enumerate(image_paths):
   else:
     if os.path.exists(f'./xml_dataset/{image_path.replace("jpg", "xml")}'):
       shutil.copy(f'./image_set/{image_path}', './test/images')
-      shutil.copy(f'./xml_dataset/{image_path.replace("JPG", "xml")}', './test/annotations')
+      shutil.copy(f'./xml_dataset/{image_path.replace("jpg", "xml")}', './test/annotations')
 
 train_data = object_detector.DataLoader.from_pascal_voc('./train/images', './train/annotations', ['r', 'o', 'f', 'br','bl'])
 test_data = object_detector.DataLoader.from_pascal_voc('./test/images', './test/annotations', ['r', 'o', 'f', 'br','bl'])
