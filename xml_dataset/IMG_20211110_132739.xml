@@ -1,0 +1,14 @@
+<annotation>
+	<folder>image_set</folder>
+	<filename>IMG_20211110_132739.jpg</filename>
+	<path>/home/christopher/git/puck-detection/image_set/IMG_20211110_132739.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>480</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+</annotation>
