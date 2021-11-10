@@ -1,0 +1,26 @@
+<annotation>
+	<folder>image_set</folder>
+	<filename>IMG_20211110_132107.jpg</filename>
+	<path>/home/christopher/git/puck-detection/image_set/IMG_20211110_132107.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>480</width>
+		<height>640</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>r</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>141</xmin>
+			<ymin>478</ymin>
+			<xmax>291</xmax>
+			<ymax>558</ymax>
+		</bndbox>
+	</object>
+</annotation>
