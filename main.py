@@ -24,6 +24,13 @@ labelDict = {'r':'puck_red','o':'puck_off', 'f':'robot_front', 'br':'robot_backr
 def xml_to_csv(path):
     xml_list = []
     globlist = glob.glob(path + '/*.xml')
+    totalBoundingBoxes = 0
+    idx = 0
+    for xml_file in globlist:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        boundingBoxes = root.findall('object')
+        totalBoundingBoxes += len(boundingBoxes)
     for xml_file in globlist:
         tree = ET.parse(xml_file)
         root = tree.getroot()
@@ -45,10 +52,10 @@ def xml_to_csv(path):
             # xml_list.append(value)
             pass
         else:
-            for idx, member in enumerate(boundingBoxes):
-                if idx > int(0.7 * len(boundingBoxes)):
+            for member in boundingBoxes:
+                if idx > int(0.3 * totalBoundingBoxes):
                     set = "TRAINING"
-                elif idx > int(0.8 * len(boundingBoxes)):
+                elif idx > int(0.1 * totalBoundingBoxes):
                     set = "VALIDATION"
                 else:
                     set = "TEST"
@@ -66,6 +73,8 @@ def xml_to_csv(path):
                     None,
                     )
                 xml_list.append(value)
+                idx += 1
+
     column_name = ['set', 'filename', 'class', 'xmin', 'ymin', None, None, 'xmax', 'ymax', None, None]
     xml_df = pd.DataFrame(xml_list, columns=column_name)
     return xml_df
