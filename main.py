@@ -61,14 +61,15 @@ def xml_to_csv(path):
                     set = "TEST"
 
                 value = (set,
-                    'image_set/' + root.find('filename').text,
+                    # 'gs://dataset_pucks/image_set/' + root.find('filename').text,
+                    './image_set/' + root.find('filename').text,
                     labelDict.get(member[0].text),
-                    int(member[4][0].text),
-                    int(member[4][1].text),
+                    int(member[4][0].text) / 480,
+                    int(member[4][1].text) / 640,
                     None,
                     None,
-                    int(member[4][2].text),
-                    int(member[4][3].text),
+                    int(member[4][2].text) / 480,
+                    int(member[4][3].text) / 640,
                     None,
                     None,
                     )
@@ -92,7 +93,7 @@ train_data, validation_data, test_data = object_detector.DataLoader.from_csv('./
 
 print("loaded data set...creating model")
 
-model = object_detector.create(train_data, model_spec=spec, epochs=1, batch_size=1, train_whole_model=True, validation_data=validation_data)
+model = object_detector.create(train_data, model_spec=spec, epochs=10, batch_size=64, train_whole_model=False, validation_data=validation_data)
 print("created model.")
 
 # model.evaluate(test_data)
@@ -101,6 +102,8 @@ print("exporting model")
 model.export(export_dir='.')
 print("evaluating model")
 
-model.evaluate_tflite('model.tflite', test_data)
+eval = model.evaluate_tflite('model.tflite', test_data)
+
+print(eval)
 
 print("finished")
