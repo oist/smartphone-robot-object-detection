@@ -1,18 +1,12 @@
-import numpy as np
-import os
-import random
-import shutil
-import os
 import glob
-import pandas as pd
+import os
 import xml.etree.ElementTree as ET
-from sklearn.model_selection import train_test_split
 
-from tflite_model_maker.config import ExportFormat
+import pandas as pd
+import tensorflow as tf
 from tflite_model_maker import model_spec
 from tflite_model_maker import object_detector
 
-import tensorflow as tf
 assert tf.__version__.startswith('2')
 
 tf.get_logger().setLevel('ERROR')
@@ -90,10 +84,9 @@ xml_df.to_csv('image_set.csv', index=None, header=False)
 print('Successfully converted xml to csv.')
 train_data, validation_data, test_data = object_detector.DataLoader.from_csv('./image_set.csv')
 
-
 print("loaded data set...creating model")
 
-model = object_detector.create(train_data, model_spec=spec, epochs=10, batch_size=64, train_whole_model=False, validation_data=validation_data)
+model = object_detector.create(train_data, model_spec=spec, epochs=50, batch_size=64, train_whole_model=True, validation_data=validation_data)
 print("created model.")
 
 # model.evaluate(test_data)
