@@ -1,5 +1,6 @@
 plugins {
-    id 'maven-publish'
+    id 'com.github.ben-manes.versions' version '0.39.0'
+    id 'com.github.hierynomus.github-release' version '2.4.1'
 }
 
 // Fetch the version according to git latest tag and "how far are we from last tag"
@@ -38,38 +39,17 @@ repositories {
     }
 }
 
-publishing {
-    publications {
-        tfmodel(MavenPublication) {
-            artifact "./model.tflite"
-            groupId = 'jp.oist'
-            artifactId = "model"
-            version = versionName
-            pom {
-                description = "A TFLite model file for detecting charging pucks and other robots for the OIST smartphone robotics platform"
-                developers {
-                    developer {
-                        id = "topherbuckley"
-                        name = "Christopher Buckley"
-                        email = "christopher.buckley@oist.jp"
-                    }
-                }
-                scm {
-                    url = "https://github.com/oist/smartphone_robot_object_detection/commit/" + gitHash()
-                    tag = scmTag()
-                }
-            }
+github {
+    release {
+        tag = versionName
+        name = versionName // Replace with your desired release name
+        description = "A TFLite model file for detecting charging pucks and other robots for the OIST smartphone robotics platform"
+        //targetCommitish = "master" // Replace with the branch you want to tag (defaults to current branch)
+        draft = false // Set to true if you want to create a draft release
+        prerelease = false // Set to true if you want to create a pre-release
+        assets {
+            file("./model.tflite") // Replace with the path to your release asset(s)
         }
-    }
-    repositories {
-        maven {
-            url = uri("https://maven.pkg.github.com/oist/smartphone_robot_object_detection")
-            credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USER")
-                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
-            }
-        }
-        mavenLocal()
     }
 }
 
