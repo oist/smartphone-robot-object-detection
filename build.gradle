@@ -1,0 +1,133 @@
+plugins {
+    id 'maven-publish'
+}
+
+// Fetch the version according to git latest tag and "how far are we from last tag"
+def longVersionName = "git -C . describe --tags --long --dirty".execute().text.trim()
+println(longVersionName)
+def (fullVersionTag, commitCount, gitSha, dirty) = longVersionName.tokenize('-')
+def(versionMajor, versionMinor, versionPatch) = fullVersionTag.tokenize('.')
+
+println("Hello")
+println(dirty)
+def versionName
+// Set the version name
+if (dirty != "null"){
+    println('dirty is null')
+    versionName = "$versionMajor.$versionMinor.$versionPatch-$commitCount"
+}else{
+    println('dirty is not null')
+    versionName = "$versionMajor.$versionMinor.$versionPatch-$commitCount-$dirty"
+}
+println("versionName: $versionName")
+
+// Turn the version name into a version code
+def versionCode = versionMajor.toInteger() * 100000 +
+        versionMinor.toInteger() * 10000 +
+        versionPatch.toInteger() * 1000 +
+        commitCount.toInteger()
+
+repositories {
+    mavenLocal()
+    maven {
+        url = uri("https://maven.pkg.github.com/oist/smartphone_robot_object_detection")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USER")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+publishing {
+    publications {
+        tfmodel(MavenPublication) {
+            artifact "./model.tflite"
+            groupId = 'jp.oist'
+            artifactId = "model"
+            version = versionName
+            pom {
+                description = "A TFLite model file for detecting charging pucks and other robots for the OIST smartphone robotics platform"
+                developers {
+                    developer {
+                        id = "topherbuckley"
+                        name = "Christopher Buckley"
+                        email = "christopher.buckley@oist.jp"
+                    }
+                }
+                scm {
+                    url = "https://github.com/oist/smartphone_robot_object_detection/commit/" + gitHash()
+                    tag = scmTag()
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/oist/smartphone_robot_object_detection")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USER")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+        mavenLocal()
+    }
+}
+
+static def getGitVersion() {
+    def longVersionName = "git describe --tags --long".execute().text.trim()
+    def (fullVersionTag, commitCount, gitSha, dirty) = longVersionName.tokenize('-')
+    // Release
+    if (commitCount.toInteger() == 0) {
+        return "$fullVersionTag"
+    }
+    // Quickfixes
+    else{
+        return "$longVersionName"
+    }
+}
+
+static def scmTag() {
+    def gitVersion = "$System.env.VERSION"
+    if (gitVersion.equals("null")) {
+        def processTag = "git describe --tags --dirty".execute()
+        def processHash = "git rev-parse HEAD".execute()
+        gitVersion = processTag.text.toString().trim() + "_" + processHash.text.toString().trim()
+    } else {
+        def gitVersionToken = gitVersion.split("/")
+        if (gitVersionToken.size() > 2)
+            gitVersion = gitVersionToken[2]
+        else
+            gitVersion = gitVersionToken[0]
+    }
+    return gitVersion
+}
+
+static def gitHash() {
+    def processHash = "git rev-parse HEAD".execute()
+    def gitHash = processHash.text.toString().trim()
+    return gitHash
+}
+
+static def isDirty() {
+    def dirtyString = "git describe --tags --dirty".execute().text.trim().tokenize("-")[-1]
+    return dirtyString.equals("dirty")
+}
+
+static def isTagged() {
+    def longVersionName = "git describe --tags --long".execute().text.trim()
+    def (fullVersionTag, commitCount, gitSha, dirty) = longVersionName.tokenize('-')
+    return commitCount.toInteger() == 0
+}
+
+tasks.withType(GenerateMavenPom).all {
+    doFirst {
+        if (isDirty()){
+            throw new GradleException("Current working directory is dirty. Use git stash or commit all your local changes before publishing.")
+        }
+        if (!isTagged()){
+            throw new GradleException("You have commits after the most recent tag. Please add a new tag to capture the patch or updates after most recent tag")
+        }
+    }
+}
+
+
