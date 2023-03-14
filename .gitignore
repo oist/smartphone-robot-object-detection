@@ -2,3 +2,6 @@
 .trash*
 test/
 train/
+build
+local.properties
+.gradle
