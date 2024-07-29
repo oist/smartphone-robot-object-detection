@@ -21,11 +21,11 @@ this project moves to the potential offshoot project called [Media Pipe](https:/
 
 # Retrain model
 `docker compose up --build`
-Note the default command is to run the retraining script (main.py).
-This takes all label data from ./xml_dataset, which is generated via labelImg (see below) 
-and retrains a efficientdet_lite0 model. The xml_dataset contains relative paths to all image files 
-located in ./image_set, bounding box, and label data. The exported model is saved as model.tflite
-in the root of the project.
+Note the default command is to run the retraining script (train.py).
+This takes all label data from ./labels, which is generated via labelImg (see below) 
+and retrains a efficientdet_lite0 model. The labels are currently xml files with the same name as the
+corresponding image help in ./images. These xml files contain relative paths to all image files, 
+bounding box, and label data. The exported model is saved as model.tflite in the root of the project.
 
 # Data Labeling
 The data labeling was done using [labelImg](https://github.com/HumanSignal/labelImg) but this project is no longer maintained
@@ -37,3 +37,11 @@ of the original project [here](https://github.com/topherbuckley/labelImg)
 
 The labeling will likely need to be updated to use a more modern tool, but for now the
 labelImg tool is sufficient for the small dataset used in this project.
+
+# Data Gathering
+The images used in this dataset were captured on a pixel 3a smartphone at higher resolution, but
+in order to speed up training were downsampled to 480 × 640 pixels. To batch downsample the images
+you can use the python script ./downsize.py. You will need to install Pillow via pip, 
+via `pip install Pillow`, but otherwise there shouldn't be any other dependencies.
+e.g. `python downsize.py ./images ./downsized`
+where `./images` hold raw images, and `./downsized` will hold the downsampled images.

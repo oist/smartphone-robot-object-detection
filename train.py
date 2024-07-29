@@ -13,7 +13,7 @@ tf.get_logger().setLevel('ERROR')
 from absl import logging
 logging.set_verbosity(logging.ERROR)
 
-labelDict = {'r':'puck_red','o':'puck_off', 'f':'robot_front', 'br':'robot_back', 'bl':'robot_back'}
+labelDict = {'p':'puck','r':'robot'}
 
 def xml_to_csv(path):
     xml_list = []
@@ -78,11 +78,11 @@ spec = model_spec.get('efficientdet_lite0')
 
 print("started loading data set")
 
-image_path = os.path.join(os.getcwd(), 'xml_dataset')
+image_path = os.path.join(os.getcwd(), 'labels')
 xml_df = xml_to_csv(image_path)
-xml_df.to_csv('image_set.csv', index=None, header=False)
+xml_df.to_csv('images.csv', index=None, header=False)
 print('Successfully converted xml to csv.')
-train_data, validation_data, test_data = object_detector.DataLoader.from_csv('./image_set.csv')
+train_data, validation_data, test_data = object_detector.DataLoader.from_csv('./images.csv')
 
 print("loaded data set...creating model")
 
