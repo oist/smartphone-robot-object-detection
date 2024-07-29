@@ -5,3 +5,5 @@ train/
 build
 local.properties
 .gradle
+images
+labels
