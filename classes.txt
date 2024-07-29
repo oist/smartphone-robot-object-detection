@@ -1,2 +1,2 @@
-p
-r
+puck
+robot
