@@ -1,6 +1,14 @@
 This repo holds the python code for retraining the OIST smartphone robot object detector model.
 This model is used to detect other robots and charging pucks.  
 
+# Running model inference
+The model is used by an example Android app that can be found [here](https://github.com/oist/examples/tree/PuckMount/lite/examples/object_detection/android)
+
+This is a fork of the [tf-model-maker](https://github.com/tensorflow/examples) repo that had a
+premade object detector app for Android using the tf-model-maker workflow. The app was modified
+to use the retrained model from this project along with the [abcvlib API](https://github.com/oist/smartphone-robot-android)
+ to allow movement of the smartphone robots to the charging pucks.
+
 This project originally made use of [tf-model-maker](https://github.com/tensorflow/examples) but
 currently there are a LOT of existing issues. A clean install with latest dependencies does
  NOT work. So, this project will maintain a simple Dockerfile to hold the required working 
