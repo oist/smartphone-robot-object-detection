@@ -32,7 +32,7 @@ def xml_to_csv(path):
 
         if (len(boundingBoxes) == 0):
             # value = ("TRAINING",
-            #          'image_set/' + root.find('filename').text,
+            #          'images/' + root.find('filename').text,
             #          None,
             #          None,
             #          None,
@@ -55,8 +55,8 @@ def xml_to_csv(path):
                     set = "TEST"
 
                 value = (set,
-                    # 'gs://dataset_pucks/image_set/' + root.find('filename').text,
-                    './image_set/' + root.find('filename').text,
+                    # 'gs://dataset_pucks/images/' + root.find('filename').text,
+                    './images/' + root.find('filename').text,
                     labelDict.get(member[0].text),
                     int(member[4][0].text) / 480,
                     int(member[4][1].text) / 640,
