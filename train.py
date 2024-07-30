@@ -13,7 +13,7 @@ tf.get_logger().setLevel('ERROR')
 from absl import logging
 logging.set_verbosity(logging.ERROR)
 
-labelDict = {'p':'puck','r':'robot'}
+labelDict = {'puck':'puck','robot':'robot'}
 
 def xml_to_csv(path):
     xml_list = []
