@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   tf-model-maker:
     build:
@@ -11,7 +9,7 @@ services:
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-    command: /bin/bash -c "cd /object-detection && python main.py"
+    command: /bin/bash -c "cd /object-detection && python train.py"
     deploy:
       resources:
         reservations:
@@ -19,4 +17,3 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-
