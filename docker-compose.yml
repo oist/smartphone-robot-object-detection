@@ -1,0 +1,19 @@
+services:
+  tf-model-maker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tf-model-maker
+    volumes:
+      - .:/object-detection
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    command: /bin/bash -c "cd /object-detection && python train.py"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
