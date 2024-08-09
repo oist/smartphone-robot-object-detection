@@ -9,6 +9,7 @@ services:
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     command: /bin/bash -c "cd /object-detection && python train.py"
     deploy:
       resources:

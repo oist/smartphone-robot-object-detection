@@ -15,6 +15,17 @@ logging.set_verbosity(logging.ERROR)
 
 labelDict = {'puck':'puck','robot':'robot'}
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        tf.config.experimental.set_virtual_device_configuration(
+            gpus[0],
+            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)])  # 4 GB limit
+    except RuntimeError as e:
+        print(e)
+
+print("Num GPUs Available: ", len(gpus))
+
 def xml_to_csv(path):
     xml_list = []
     globlist = glob.glob(path + '/*.xml')
@@ -86,7 +97,7 @@ train_data, validation_data, test_data = object_detector.DataLoader.from_csv('./
 
 print("loaded data set...creating model")
 
-model = object_detector.create(train_data, model_spec=spec, epochs=1, batch_size=64, train_whole_model=True, validation_data=validation_data)
+model = object_detector.create(train_data, model_spec=spec, epochs=100, batch_size=16, train_whole_model=True, validation_data=validation_data)
 print("created model.")
 
 # model.evaluate(test_data)
