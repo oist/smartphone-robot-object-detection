@@ -12,6 +12,8 @@ from pathlib import Path
 
 EXPECTED_CLASSES = ["puck", "robot-front", "robot-back"]
 DEFAULT_REPO = "oist/smartphone_robot_object_detection"
+DEFAULT_IMAGES_DIR = Path("images")
+DEFAULT_ANNOTATIONS = Path("annotations/coco_detection.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,8 +21,18 @@ def parse_args() -> argparse.Namespace:
         description="Download and prepare a COCO dataset for MediaPipe object detector training.",
     )
     parser.add_argument(
+        "--images-dir",
+        default=str(DEFAULT_IMAGES_DIR),
+        help="Path to the local source image directory used with a local COCO export.",
+    )
+    parser.add_argument(
+        "--annotations",
+        default=str(DEFAULT_ANNOTATIONS),
+        help="Path to the local COCO annotations JSON export.",
+    )
+    parser.add_argument(
         "--source-archive",
-        help="Path to a local dataset zip. Skips GitHub download when set.",
+        help="Path to a local dataset zip. Used when preparing from a packaged dataset archive.",
     )
     parser.add_argument(
         "--release-manifest",
@@ -140,8 +152,7 @@ def find_coco_root(extract_root: Path) -> Path:
     return candidates[0]
 
 
-def load_coco_dataset(dataset_root: Path) -> dict:
-    labels_path = dataset_root / "labels.json"
+def load_coco_dataset_from_labels(labels_path: Path) -> dict:
     with labels_path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     categories = [category["name"] for category in sorted(payload["categories"], key=lambda item: item["id"])]
@@ -150,6 +161,19 @@ def load_coco_dataset(dataset_root: Path) -> dict:
             f"{labels_path} categories {categories} do not match expected {EXPECTED_CLASSES}"
         )
     return payload
+
+
+def load_local_coco_dataset(images_dir: Path, annotations_path: Path) -> tuple[dict, Path]:
+    if not images_dir.is_dir():
+        raise FileNotFoundError(f"Missing images directory: {images_dir}")
+    if not annotations_path.is_file():
+        raise FileNotFoundError(f"Missing COCO annotations file: {annotations_path}")
+    return load_coco_dataset_from_labels(annotations_path), images_dir
+
+
+def load_archive_coco_dataset(archive_path: Path, extract_dir: Path) -> tuple[dict, Path]:
+    dataset_root = extract_archive(archive_path, extract_dir)
+    return load_coco_dataset_from_labels(dataset_root / "labels.json"), dataset_root / "images"
 
 
 def split_images(images: list[dict], seed: int, train_ratio: float, validation_ratio: float) -> dict[str, list[dict]]:
@@ -198,7 +222,7 @@ def write_split(
     split_images_list: list[dict],
     annotations: list[dict],
     categories: list[dict],
-    source_root: Path,
+    source_images_dir: Path,
     prepared_dir: Path,
 ) -> None:
     split_dir = prepared_dir / split_name
@@ -211,7 +235,7 @@ def write_split(
     split_annotations = subset_annotations(annotations, image_ids)
 
     for image in split_images_list:
-        source_path = source_root / "images" / image["file_name"]
+        source_path = source_images_dir / image["file_name"]
         if not source_path.is_file():
             raise FileNotFoundError(f"Missing image referenced by COCO labels: {source_path}")
         copy_or_link(source_path, images_dir / image["file_name"])
@@ -232,17 +256,20 @@ def main() -> None:
     if abs(total_ratio - 1.0) > 1e-9:
         raise ValueError("train/validation/test ratios must sum to 1.0")
 
-    archive_path: Path
-    if args.source_archive:
+    local_images_dir = Path(args.images_dir)
+    local_annotations = Path(args.annotations)
+
+    if local_images_dir.is_dir() and local_annotations.is_file():
+        dataset, source_images_dir = load_local_coco_dataset(local_images_dir, local_annotations)
+    elif args.source_archive:
         archive_path = Path(args.source_archive)
         if not archive_path.is_file():
             raise FileNotFoundError(f"Dataset archive not found: {archive_path}")
+        dataset, source_images_dir = load_archive_coco_dataset(archive_path, Path(args.extract_dir))
     else:
         manifest = load_manifest(Path(args.release_manifest))
         archive_path = download_release_asset(manifest, Path(args.download_dir))
-
-    dataset_root = extract_archive(archive_path, Path(args.extract_dir))
-    dataset = load_coco_dataset(dataset_root)
+        dataset, source_images_dir = load_archive_coco_dataset(archive_path, Path(args.extract_dir))
 
     annotated_image_ids = {annotation["image_id"] for annotation in dataset["annotations"]}
     annotated_images = [image for image in dataset["images"] if image["id"] in annotated_image_ids]
@@ -264,7 +291,7 @@ def main() -> None:
             split_images_list=split_images_list,
             annotations=dataset["annotations"],
             categories=dataset["categories"],
-            source_root=dataset_root,
+            source_images_dir=source_images_dir,
             prepared_dir=prepared_dir,
         )
 

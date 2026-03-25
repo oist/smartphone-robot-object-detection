@@ -1,7 +1,11 @@
 import argparse
+import json
 import shutil
 import zipfile
 from pathlib import Path
+
+DEFAULT_IMAGES_DIR = Path("images")
+DEFAULT_ANNOTATIONS = Path("annotations/coco_detection.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -9,8 +13,14 @@ def parse_args() -> argparse.Namespace:
         description="Package a local COCO dataset export into a release-ready zip archive.",
     )
     parser.add_argument(
-        "dataset_root",
-        help="Path to a COCO dataset directory containing images/ and labels.json.",
+        "--images-dir",
+        default=str(DEFAULT_IMAGES_DIR),
+        help="Path to the source image directory.",
+    )
+    parser.add_argument(
+        "--annotations",
+        default=str(DEFAULT_ANNOTATIONS),
+        help="Path to the COCO annotations JSON file.",
     )
     parser.add_argument(
         "--output",
@@ -34,14 +44,13 @@ def zip_directory(source_dir: Path, destination_zip: Path) -> None:
 
 def main() -> None:
     args = parse_args()
-    dataset_root = Path(args.dataset_root)
-    labels_path = dataset_root / "labels.json"
-    images_dir = dataset_root / "images"
+    images_dir = Path(args.images_dir)
+    labels_path = Path(args.annotations)
 
-    if not labels_path.is_file():
-        raise FileNotFoundError(f"Missing labels.json in {dataset_root}")
     if not images_dir.is_dir():
-        raise FileNotFoundError(f"Missing images directory in {dataset_root}")
+        raise FileNotFoundError(f"Missing images directory: {images_dir}")
+    if not labels_path.is_file():
+        raise FileNotFoundError(f"Missing COCO annotations file: {labels_path}")
 
     output_path = Path(args.output)
     staging_root = Path(args.staging_dir)
@@ -53,9 +62,15 @@ def main() -> None:
     (staging_dataset / "images").mkdir(parents=True, exist_ok=True)
     shutil.copy2(labels_path, staging_dataset / "labels.json")
 
-    for image_path in sorted(images_dir.iterdir()):
-        if image_path.is_file():
-            shutil.copy2(image_path, staging_dataset / "images" / image_path.name)
+    with labels_path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    referenced_filenames = sorted({image["file_name"] for image in payload.get("images", [])})
+    for filename in referenced_filenames:
+        image_path = images_dir / filename
+        if not image_path.is_file():
+            raise FileNotFoundError(f"Missing image referenced by COCO labels: {image_path}")
+        shutil.copy2(image_path, staging_dataset / "images" / image_path.name)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists():

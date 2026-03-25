@@ -11,25 +11,25 @@ The detector uses three classes:
 # Current Training Pipeline
 The legacy `tflite-model-maker` and `labelImg` flow has been replaced with:
 
-1. Images stored outside git as GitHub Release assets.
+1. Images in `./images`.
 2. Annotation with `X-AnyLabeling`.
-3. COCO export from `X-AnyLabeling`.
+3. COCO export to `./annotations/coco_detection.json`.
 4. Dataset preparation into train/validation/test splits.
 5. MediaPipe Model Maker retraining.
-6. Export of `.tflite` artifacts with metadata.
+6. Packaging the annotated dataset for GitHub Releases.
 
 # Dataset Expectations
-The raw annotation export is expected to be a single COCO dataset zip with this layout:
+The local source-of-truth dataset layout is:
 
 ```text
-dataset-root/
-  images/
-    *.jpg
-    *.png
-  labels.json
+images/
+  *.jpg
+  *.json      # X-AnyLabeling per-image files
+annotations/
+  coco_detection.json
 ```
 
-The COCO `categories` in `labels.json` must match:
+The COCO `categories` in `annotations/coco_detection.json` must match:
 
 ```text
 puck
@@ -37,10 +37,8 @@ robot-front
 robot-back
 ```
 
-The dataset zip should be published as a GitHub Release asset instead of being committed into git.
-
 # Starting From Local Images
-Right now the repo can start from your unlabeled local images in [images](/media/HDD/included/code/smartphone-robot/object-detection/images).
+The repo is designed to start from local images in [images](/media/HDD/included/code/smartphone-robot/object-detection/images).
 
 The intended local-first flow is:
 
@@ -48,54 +46,30 @@ The intended local-first flow is:
 2. Open that image directory in `X-AnyLabeling`.
 3. Label every object using exactly these class names:
    `puck`, `robot-front`, `robot-back`
-4. Export the finished annotations as a COCO dataset with:
-   `images/`
-   `labels.json`
-5. Validate the export locally.
-6. Package the validated COCO dataset into a release-ready zip.
-7. Optionally upload that zip as a GitHub Release asset.
-8. Prepare train/validation/test splits and train the model.
+4. Let `X-AnyLabeling` save its per-image JSON files in `./images`.
+5. Export COCO annotations to `./annotations/coco_detection.json`.
+6. Prepare train/validation/test splits and train the model.
+7. Package the annotated dataset into a release-ready zip.
+8. Upload that zip as a GitHub Release asset.
 
 # X-AnyLabeling Workflow
-Use `X-AnyLabeling` against the current local image directory and export a COCO dataset to a
-separate folder, for example:
-
-```text
-tmp/coco-export/
-  images/
-  labels.json
-```
+Use `X-AnyLabeling` against the current local image directory. Its default behavior of saving
+per-image JSON files alongside the images is fine. After labeling, export the combined COCO file to
+[annotations/coco_detection.json](/media/HDD/included/code/smartphone-robot/object-detection/annotations/coco_detection.json).
 
 Important constraints:
 
 1. Use exactly these labels: `puck`, `robot-front`, `robot-back`
 2. Keep image filenames stable between annotation and export
-3. Ensure the export includes both the copied images and the COCO `labels.json`
-
-# Validate And Package A Finished COCO Export
-After you finish labeling in `X-AnyLabeling`, validate the local export:
-
-```bash
-python validate_coco.py /path/to/coco-export
-```
-
-If validation passes, package it into the release-ready zip format used by this repo:
-
-```bash
-python package_dataset.py /path/to/coco-export --output object-detection-dataset.zip
-```
-
-That zip can then be uploaded to a GitHub Release or used locally with:
-
-```bash
-python prepare_dataset.py --source-archive object-detection-dataset.zip
-```
+3. Export the combined COCO file to `./annotations/coco_detection.json`
 
 # Dataset Download And Preparation
 Create `dataset_release.json` from `dataset_release.example.json` and fill in the real GitHub
 Release tag, asset name, and optional SHA256 checksum.
 
-Then prepare the local MediaPipe dataset splits:
+For local training, prepare the MediaPipe dataset splits directly from
+[images](/media/HDD/included/code/smartphone-robot/object-detection/images) and
+[annotations/coco_detection.json](/media/HDD/included/code/smartphone-robot/object-detection/annotations/coco_detection.json):
 
 ```bash
 python prepare_dataset.py
@@ -103,20 +77,39 @@ python prepare_dataset.py
 
 This will:
 
-1. Download the configured release asset from `oist/smartphone_robot_object_detection`.
-2. Extract the COCO dataset into `data/raw/`.
+1. Read the local images from `./images`.
+2. Read the COCO annotations from `./annotations/coco_detection.json`.
 3. Split annotated images into `train`, `validation`, and `test` sets.
 4. Write MediaPipe-ready splits into `data/prepared/`.
 
-If the repository is private, set `GITHUB_TOKEN` before running the script.
-
-You can also bypass GitHub Releases and prepare from a local archive:
+If you want to prepare from a packaged dataset archive instead, you can still use:
 
 ```bash
 python prepare_dataset.py --source-archive /path/to/object-detection-dataset.zip
 ```
 
-If you have not uploaded a release yet, this local archive path is the correct path to use.
+If neither the local images/annotations nor `--source-archive` are available, the script falls back
+to downloading the configured GitHub Release asset.
+
+If the repository is private, set `GITHUB_TOKEN` before using the release-download path.
+
+# Packaging For GitHub Releases
+Packaging is part of the intended workflow for this repo. Build the release-ready dataset archive
+directly from the local image folder and exported COCO annotations:
+
+```bash
+python package_dataset.py --output object-detection-dataset.zip
+```
+
+This creates a zip containing:
+
+```text
+dataset-root/
+  images/
+  labels.json
+```
+
+That archive is the expected GitHub Release asset format for later reuse.
 
 # Training
 The default training command assumes the prepared dataset layout created by `prepare_dataset.py`:
@@ -168,4 +161,5 @@ python downsize.py ./images ./downsized
 ```
 
 `downsize_xml.py` is retained only as a legacy helper for older Pascal VOC workflows and is no
-longer part of the supported training path.
+longer part of the supported training path. `validate_coco.py` remains available as an optional
+troubleshooting helper, but it is not required in the primary workflow.
