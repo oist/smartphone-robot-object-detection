@@ -1,20 +1,9 @@
 services:
-  tf-model-maker:
+  mediapipe-model-maker:
     build:
       context: .
       dockerfile: Dockerfile
-    image: tf-model-maker
+    image: mediapipe-model-maker
     volumes:
       - .:/object-detection
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    command: /bin/bash -c "cd /object-detection && python train.py"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    command: python train.py --export-fp16

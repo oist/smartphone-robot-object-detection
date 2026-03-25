@@ -8,3 +8,8 @@ local.properties
 images
 labels
 downsampled
+data/
+dataset_release.json
+exported_model/
+.mediapipe_cache/
+__pycache__/
