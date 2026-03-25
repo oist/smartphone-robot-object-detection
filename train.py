@@ -5,8 +5,14 @@ from pathlib import Path
 from mediapipe_model_maker import object_detector
 from mediapipe_model_maker import quantization
 
+from label_modes import (
+    DEFAULT_LABEL_MODE,
+    LABEL_MODE_CHOICES,
+    expected_classes,
+    label_mode_display_name,
+    label_mode_file_suffix,
+)
 
-EXPECTED_CLASSES = ["puck", "robot-front", "robot-back"]
 SUPPORTED_MODELS = {
     "mobilenet_v2": object_detector.SupportedModels.MOBILENET_V2,
     "mobilenet_v2_i320": object_detector.SupportedModels.MOBILENET_V2_I320,
@@ -57,6 +63,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cosine-decay-alpha", type=float, default=1.0)
     parser.add_argument("--l2-weight-decay", type=float, default=3e-5)
     parser.add_argument(
+        "--label-mode",
+        choices=LABEL_MODE_CHOICES,
+        default=DEFAULT_LABEL_MODE,
+        help="Expected dataset label mode. 'robot-merged' expects categories ['puck', 'robot'].",
+    )
+    parser.add_argument(
         "--export-fp16",
         action="store_true",
         help="Also export a float16 quantized TFLite model for GPU-oriented use.",
@@ -81,7 +93,20 @@ def load_categories(labels_path: Path) -> list[str]:
     return [category["name"] for category in sorted(categories, key=lambda item: item["id"])]
 
 
-def validate_coco_split(split_dir: Path) -> None:
+def load_dataset(split_dir: Path, cache_dir: Path, label_mode: str) -> object_detector.Dataset:
+    validate_coco_split(split_dir, label_mode)
+    return object_detector.Dataset.from_coco_folder(str(split_dir), cache_dir=str(cache_dir))
+
+
+def maybe_load_dataset(
+    split_dir: Path | None, cache_dir: Path, label_mode: str
+) -> object_detector.Dataset | None:
+    if split_dir is None or not split_dir.exists():
+        return None
+    return load_dataset(split_dir, cache_dir, label_mode)
+
+
+def validate_coco_split(split_dir: Path, label_mode: str) -> None:
     if not split_dir.exists():
         raise FileNotFoundError(f"COCO split not found: {split_dir}")
 
@@ -93,21 +118,38 @@ def validate_coco_split(split_dir: Path) -> None:
         raise FileNotFoundError(f"Missing images directory in {split_dir}")
 
     categories = load_categories(labels_path)
-    if categories != EXPECTED_CLASSES:
+    expected_category_names = expected_classes(label_mode)
+    if categories != expected_category_names:
         raise ValueError(
-            f"{labels_path} categories {categories} do not match expected {EXPECTED_CLASSES}"
+            f"{labels_path} categories {categories} do not match expected {expected_category_names}"
         )
 
 
-def load_dataset(split_dir: Path, cache_dir: Path) -> object_detector.Dataset:
-    validate_coco_split(split_dir)
-    return object_detector.Dataset.from_coco_folder(str(split_dir), cache_dir=str(cache_dir))
-
-
-def maybe_load_dataset(split_dir: Path | None, cache_dir: Path) -> object_detector.Dataset | None:
-    if split_dir is None or not split_dir.exists():
-        return None
-    return load_dataset(split_dir, cache_dir)
+def write_training_summary(
+    output_dir: Path,
+    args: argparse.Namespace,
+    validation_loss: list[float] | tuple[float, ...],
+    validation_metrics: dict,
+    test_loss: list[float] | tuple[float, ...] | None,
+    test_metrics: dict | None,
+) -> None:
+    summary = {
+        "label_mode": args.label_mode,
+        "label_mode_display_name": label_mode_display_name(args.label_mode),
+        "label_mode_file_suffix": label_mode_file_suffix(args.label_mode),
+        "classes": expected_classes(args.label_mode),
+        "model": args.model,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "learning_rate": args.learning_rate,
+        "validation_loss": list(validation_loss),
+        "validation_metrics": validation_metrics,
+        "test_loss": list(test_loss) if test_loss is not None else None,
+        "test_metrics": test_metrics,
+    }
+    with (output_dir / "training_summary.json").open("w", encoding="utf-8") as handle:
+        json.dump(summary, handle, indent=2)
+        handle.write("\n")
 
 
 def main() -> None:
@@ -122,9 +164,9 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    train_data = load_dataset(train_dir, cache_dir)
-    validation_data = load_dataset(validation_dir, cache_dir)
-    test_data = maybe_load_dataset(test_dir, cache_dir)
+    train_data = load_dataset(train_dir, cache_dir, args.label_mode)
+    validation_data = load_dataset(validation_dir, cache_dir, args.label_mode)
+    test_data = maybe_load_dataset(test_dir, cache_dir, args.label_mode)
 
     options = object_detector.ObjectDetectorOptions(
         supported_model=SUPPORTED_MODELS[args.model],
@@ -156,6 +198,19 @@ def main() -> None:
         test_loss, test_metrics = model.evaluate(test_data, batch_size=args.batch_size)
         print(f"Test loss: {test_loss}")
         print(f"Test metrics: {test_metrics}")
+    else:
+        test_loss = None
+        test_metrics = None
+
+    write_training_summary(
+        output_dir=output_dir,
+        args=args,
+        validation_loss=validation_loss,
+        validation_metrics=validation_metrics,
+        test_loss=test_loss,
+        test_metrics=test_metrics,
+    )
+    print(f"Wrote training summary to {output_dir / 'training_summary.json'}")
 
     model.export_model(model_name="model.tflite")
     print(f"Exported float model to {output_dir / 'model.tflite'}")

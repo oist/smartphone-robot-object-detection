@@ -8,6 +8,11 @@ The detector uses three classes:
 2. `robot-front`
 3. `robot-back`
 
+The training pipeline now supports two label modes:
+
+1. `three-class` (default): `puck`, `robot-front`, `robot-back`
+2. `robot-merged`: `puck`, `robot`
+
 # Current Training Pipeline
 The legacy `tflite-model-maker` and `labelImg` flow has been replaced with:
 
@@ -36,6 +41,9 @@ puck
 robot-front
 robot-back
 ```
+
+`annotations/coco_detection.json` remains the source-of-truth 3-class export even when training a
+`robot-merged` variant. The merge happens during `prepare_dataset.py`.
 
 # Starting From Local Images
 The repo is designed to start from local images in [images](/media/HDD/included/code/smartphone-robot/object-detection/images).
@@ -98,7 +106,7 @@ Packaging is part of the intended workflow for this repo. Build the release-read
 directly from the local image folder and exported COCO annotations:
 
 ```bash
-python package_dataset.py --output object-detection-dataset.zip
+python package_dataset.py --output dataset.zip
 ```
 
 This creates a zip containing:
@@ -110,6 +118,8 @@ dataset-root/
 ```
 
 That archive is the expected GitHub Release asset format for later reuse.
+`dataset.zip` is the canonical asset name; `object-detection-dataset.zip` is still accepted as a
+legacy compatibility name when downloading older releases.
 
 # Training
 The default training command assumes the prepared dataset layout created by `prepare_dataset.py`:
@@ -134,10 +144,14 @@ Useful training flags:
 python train.py --epochs 40 --batch-size 4
 python train.py --export-fp16
 python train.py --run-qat
+python prepare_dataset.py --label-mode robot-merged
+python train.py --label-mode robot-merged --export-fp16
 ```
 
 `--export-fp16` exports `model_fp16.tflite` for GPU-oriented deployment.
 `--run-qat` adds quantization-aware training and exports `model_int8_qat.tflite` for CPU-oriented deployment.
+`--label-mode robot-merged` prepares and validates a 2-class variant that merges `robot-front` and
+`robot-back` into `robot`.
 
 # Docker
 Build the training container and run the default training command:
@@ -148,6 +162,43 @@ docker compose up --build
 
 The compose service now uses the MediaPipe training script directly. Prepare the dataset first so
 `data/prepared/` exists in the mounted workspace.
+
+# Release Publishing
+Versioned release assets are prepared under `build/release/<tag>/`. The release scripts rename the
+model artifacts so the shipped variant is obvious from the filename.
+
+Prepare release assets for the current 3-class model:
+
+```bash
+python scripts/prepare_release_assets.py --tag 2.0.0
+```
+
+Publish the GitHub release using those prepared assets:
+
+```bash
+python scripts/publish_release.py --tag 2.0.0
+```
+
+Release `2.0.0` is documented as the 3-class model release. The repository also supports
+`--label-mode robot-merged` for future training runs and future release variants.
+
+The scripts resolve release metadata in this order:
+
+1. `exported_model/training_summary.json` for metrics from fresh training runs
+2. `release_inputs/<tag>.json` for release-specific metadata and fallback metrics
+3. built-in defaults for the Docker image and title
+
+That keeps the common release flow short while still allowing older training runs to be published
+without editing the scripts.
+
+# DockerHub Publishing
+Build and publish the training image to DockerHub:
+
+```bash
+python scripts/publish_dockerhub.py --tag 2.0.0
+```
+
+The default DockerHub repository is `topher217/smartphone-robot-object-detection`.
 
 # Android Integration
 This repo only covers model preparation and retraining. The Android app should consume the exported

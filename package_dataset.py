@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="object-detection-dataset.zip",
+        default="dataset.zip",
         help="Zip file path to create.",
     )
     parser.add_argument(

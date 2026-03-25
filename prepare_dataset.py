@@ -9,11 +9,19 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from label_modes import (
+    DEFAULT_LABEL_MODE,
+    LABEL_MODE_CHOICES,
+    detect_label_mode,
+    expected_classes,
+    remap_coco_dataset,
+)
 
-EXPECTED_CLASSES = ["puck", "robot-front", "robot-back"]
 DEFAULT_REPO = "oist/smartphone_robot_object_detection"
 DEFAULT_IMAGES_DIR = Path("images")
 DEFAULT_ANNOTATIONS = Path("annotations/coco_detection.json")
+DEFAULT_RELEASE_ASSET = "dataset.zip"
+LEGACY_RELEASE_ASSET = "object-detection-dataset.zip"
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,6 +62,12 @@ def parse_args() -> argparse.Namespace:
         default="data/prepared",
         help="Directory containing the generated train/validation/test splits.",
     )
+    parser.add_argument(
+        "--label-mode",
+        choices=LABEL_MODE_CHOICES,
+        default=DEFAULT_LABEL_MODE,
+        help="Label variant to prepare. 'robot-merged' collapses robot-front and robot-back into robot.",
+    )
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--validation-ratio", type=float, default=0.1)
     parser.add_argument("--test-ratio", type=float, default=0.1)
@@ -68,7 +82,7 @@ def load_manifest(manifest_path: Path) -> dict:
         )
     with manifest_path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
-    for key in ("tag", "asset"):
+    for key in ("tag",):
         if key not in payload:
             raise ValueError(f"Manifest {manifest_path} is missing required key '{key}'")
     payload.setdefault("repo", DEFAULT_REPO)
@@ -94,13 +108,28 @@ def download_release_asset(manifest: dict, download_dir: Path) -> Path:
     with urllib.request.urlopen(github_request(release_url, "application/vnd.github+json")) as response:
         release_info = json.load(response)
 
+    configured_asset = manifest.get("asset")
+    asset_names = []
+    if configured_asset:
+        asset_names.append(configured_asset)
+        if configured_asset == DEFAULT_RELEASE_ASSET:
+            asset_names.append(LEGACY_RELEASE_ASSET)
+        elif configured_asset == LEGACY_RELEASE_ASSET:
+            asset_names.append(DEFAULT_RELEASE_ASSET)
+    else:
+        asset_names.extend([DEFAULT_RELEASE_ASSET, LEGACY_RELEASE_ASSET])
+
     asset = next(
-        (candidate for candidate in release_info.get("assets", []) if candidate["name"] == manifest["asset"]),
+        (
+            candidate
+            for candidate in release_info.get("assets", [])
+            if candidate["name"] in asset_names
+        ),
         None,
     )
     if asset is None:
         raise ValueError(
-            f"Could not find asset '{manifest['asset']}' on release tag '{manifest['tag']}'"
+            f"Could not find any dataset asset matching {asset_names} on release tag '{manifest['tag']}'"
         )
 
     destination = download_dir / asset["name"]
@@ -156,10 +185,7 @@ def load_coco_dataset_from_labels(labels_path: Path) -> dict:
     with labels_path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
     categories = [category["name"] for category in sorted(payload["categories"], key=lambda item: item["id"])]
-    if categories != EXPECTED_CLASSES:
-        raise ValueError(
-            f"{labels_path} categories {categories} do not match expected {EXPECTED_CLASSES}"
-        )
+    detect_label_mode(categories)
     return payload
 
 
@@ -275,6 +301,16 @@ def main() -> None:
     annotated_images = [image for image in dataset["images"] if image["id"] in annotated_image_ids]
     if not annotated_images:
         raise ValueError("The COCO dataset contains no annotated images.")
+
+    dataset = remap_coco_dataset(dataset, args.label_mode)
+    prepared_categories = [
+        category["name"] for category in sorted(dataset["categories"], key=lambda item: item["id"])
+    ]
+    expected_category_names = expected_classes(args.label_mode)
+    if prepared_categories != expected_category_names:
+        raise ValueError(
+            f"Prepared categories {prepared_categories} do not match expected {expected_category_names}"
+        )
 
     split_map = split_images(
         annotated_images,

@@ -16,6 +16,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir mediapipe-model-maker pycocotools
+    pip install --no-cache-dir \
+        "tensorflow[and-cuda]==2.15.1" \
+        "mediapipe-model-maker==0.2.1.4" \
+        pycocotools
 
 WORKDIR /object-detection
