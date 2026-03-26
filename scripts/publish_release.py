@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--tag", required=True, help="Release tag, for example 2.0.0.")
     parser.add_argument("--target", default="HEAD", help="Target commitish used when creating a new release.")
-    parser.add_argument("--repo", default="oist/smartphone_robot_object_detection")
+    parser.add_argument("--repo", default="oist/smartphone-robot-object-detection")
     parser.add_argument("--dataset-archive")
     parser.add_argument("--release-input")
     parser.add_argument("--title")

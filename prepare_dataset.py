@@ -17,7 +17,7 @@ from label_modes import (
     remap_coco_dataset,
 )
 
-DEFAULT_REPO = "oist/smartphone_robot_object_detection"
+DEFAULT_REPO = "oist/smartphone-robot-object-detection"
 DEFAULT_IMAGES_DIR = Path("images")
 DEFAULT_ANNOTATIONS = Path("annotations/coco_detection.json")
 DEFAULT_RELEASE_ASSET = "dataset.zip"

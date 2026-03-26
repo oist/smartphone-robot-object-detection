@@ -9,7 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_RELEASE_DIR = REPO_ROOT / "build" / "release"
-DEFAULT_REPO = "oist/smartphone_robot_object_detection"
+DEFAULT_REPO = "oist/smartphone-robot-object-detection"
 
 
 def parse_args() -> argparse.Namespace:
