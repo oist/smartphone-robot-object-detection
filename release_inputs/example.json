@@ -1,0 +1,11 @@
+{
+  "title": "Smartphone Robot Detector 2.1.0",
+  "label_mode": "three-class",
+  "docker_image": "topher217/smartphone-robot-object-detection",
+  "metrics": {
+    "validation_ap": null,
+    "validation_ap50": null,
+    "test_ap": null,
+    "test_ap50": null
+  }
+}
