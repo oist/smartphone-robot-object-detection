@@ -186,7 +186,7 @@ The scripts resolve release metadata in this order:
 
 1. `exported_model/training_summary.json` for metrics from fresh training runs
 2. `release_inputs/<tag>.json` for release-specific metadata and fallback metrics
-3. built-in defaults for the Docker image and title
+3. built-in defaults for the Docker image and version-only release title
 
 That keeps the common release flow short while still allowing older training runs to be published
 without editing the scripts.

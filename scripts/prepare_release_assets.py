@@ -155,7 +155,7 @@ def build_release_notes(
 ) -> str:
     classes = ", ".join(expected_classes(label_mode))
     lines = [
-        f"# Smartphone Robot Detector {tag}",
+        f"# {tag}",
         "",
         f"- Published model variant: `{label_mode_display_name(label_mode)}`",
         f"- Classes in this release: `{classes}`",
@@ -254,7 +254,7 @@ def main() -> None:
 
     manifest_payload = {
         "tag": args.tag,
-        "title": release_input.get("title") or f"Smartphone Robot Detector {args.tag}",
+        "title": release_input.get("title") or args.tag,
         "label_mode": label_mode,
         "label_mode_display_name": label_mode_display_name(label_mode),
         "classes": expected_classes(label_mode),
