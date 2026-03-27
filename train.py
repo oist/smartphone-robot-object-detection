@@ -9,9 +9,8 @@ from label_modes import (
     DEFAULT_LABEL_MODE,
     LABEL_MODE_CHOICES,
     expected_classes,
-    label_mode_display_name,
-    label_mode_file_suffix,
 )
+from training_artifacts import training_summary_payload, write_json_atomically
 
 SUPPORTED_MODELS = {
     "mobilenet_v2": object_detector.SupportedModels.MOBILENET_V2,
@@ -133,23 +132,18 @@ def write_training_summary(
     test_loss: list[float] | tuple[float, ...] | None,
     test_metrics: dict | None,
 ) -> None:
-    summary = {
-        "label_mode": args.label_mode,
-        "label_mode_display_name": label_mode_display_name(args.label_mode),
-        "label_mode_file_suffix": label_mode_file_suffix(args.label_mode),
-        "classes": expected_classes(args.label_mode),
-        "model": args.model,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size,
-        "learning_rate": args.learning_rate,
-        "validation_loss": list(validation_loss),
-        "validation_metrics": validation_metrics,
-        "test_loss": list(test_loss) if test_loss is not None else None,
-        "test_metrics": test_metrics,
-    }
-    with (output_dir / "training_summary.json").open("w", encoding="utf-8") as handle:
-        json.dump(summary, handle, indent=2)
-        handle.write("\n")
+    summary = training_summary_payload(
+        label_mode=args.label_mode,
+        model=args.model,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        validation_loss=validation_loss,
+        validation_metrics=validation_metrics,
+        test_loss=test_loss,
+        test_metrics=test_metrics,
+    )
+    write_json_atomically(output_dir / "training_summary.json", summary)
 
 
 def main() -> None:
@@ -202,16 +196,6 @@ def main() -> None:
         test_loss = None
         test_metrics = None
 
-    write_training_summary(
-        output_dir=output_dir,
-        args=args,
-        validation_loss=validation_loss,
-        validation_metrics=validation_metrics,
-        test_loss=test_loss,
-        test_metrics=test_metrics,
-    )
-    print(f"Wrote training summary to {output_dir / 'training_summary.json'}")
-
     model.export_model(model_name="model.tflite")
     print(f"Exported float model to {output_dir / 'model.tflite'}")
 
@@ -222,6 +206,19 @@ def main() -> None:
             quantization_config=fp16_config,
         )
         print(f"Exported float16 model to {output_dir / 'model_fp16.tflite'}")
+
+    try:
+        write_training_summary(
+            output_dir=output_dir,
+            args=args,
+            validation_loss=validation_loss,
+            validation_metrics=validation_metrics,
+            test_loss=test_loss,
+            test_metrics=test_metrics,
+        )
+        print(f"Wrote training summary to {output_dir / 'training_summary.json'}")
+    except Exception as exc:
+        print(f"Warning: failed to write training summary: {exc}")
 
     if args.run_qat:
         qat_hparams = object_detector.QATHParams(

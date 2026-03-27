@@ -152,6 +152,7 @@ What the wrapper does:
 1. Prepares the dataset split with the requested `--label-mode`
 2. Runs the matching named Docker Compose service
 3. Exports `model.tflite` and, by default, `model_fp16.tflite`
+4. Writes `training_summary.json` after export; summary writing is best-effort so it cannot discard a finished model export
 
 You can still call [train.py](/media/HDD/included/code/smartphone-robot/object-detection/train.py)
 directly for lower-level control, including `--run-qat` and other training flags.
