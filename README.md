@@ -122,10 +122,10 @@ That archive is the expected GitHub Release asset format for later reuse.
 legacy compatibility name when downloading older releases.
 
 # Training
-The default training command assumes the prepared dataset layout created by `prepare_dataset.py`:
+The primary reusable training entrypoint is:
 
 ```bash
-python train.py --export-fp16
+python scripts/train_model.py --label-mode three-class
 ```
 
 Important paths:
@@ -138,30 +138,34 @@ Important paths:
 The default model is `mobilenet_multi_avg_i384`, which is one of the currently supported
 MediaPipe object detector training architectures.
 
-Useful training flags:
+Reusable training commands:
 
 ```bash
-python train.py --epochs 40 --batch-size 4
-python train.py --export-fp16
-python train.py --run-qat
-python prepare_dataset.py --label-mode robot-merged
-python train.py --label-mode robot-merged --export-fp16
+python scripts/train_model.py --label-mode three-class
+python scripts/train_model.py --label-mode robot-merged
+python scripts/train_model.py --label-mode robot-merged -- --epochs 40 --batch-size 4
+python scripts/train_model.py --label-mode three-class --build
 ```
 
-`--export-fp16` exports `model_fp16.tflite` for GPU-oriented deployment.
-`--run-qat` adds quantization-aware training and exports `model_int8_qat.tflite` for CPU-oriented deployment.
-`--label-mode robot-merged` prepares and validates a 2-class variant that merges `robot-front` and
-`robot-back` into `robot`.
+What the wrapper does:
+
+1. Prepares the dataset split with the requested `--label-mode`
+2. Runs the matching named Docker Compose service
+3. Exports `model.tflite` and, by default, `model_fp16.tflite`
+4. Writes `training_summary.json` after export; summary writing is best-effort so it cannot discard a finished model export
+
+You can still call [train.py](/media/HDD/included/code/smartphone-robot/object-detection/train.py)
+directly for lower-level control, including `--run-qat` and other training flags.
 
 # Docker
-Build the training container and run the default training command:
+Named Docker Compose services are available for the reusable training modes:
 
 ```bash
-docker compose up --build
+docker compose up --build mediapipe-model-maker-3class
+docker compose up --build mediapipe-model-maker-robot-merged
 ```
 
-The compose service now uses the MediaPipe training script directly. Prepare the dataset first so
-`data/prepared/` exists in the mounted workspace.
+For normal use, prefer the wrapper script above so dataset preparation and training stay aligned.
 
 # Release Publishing
 Versioned release assets are prepared under `build/release/<tag>/`. The release scripts rename the
@@ -186,7 +190,7 @@ The scripts resolve release metadata in this order:
 
 1. `exported_model/training_summary.json` for metrics from fresh training runs
 2. `release_inputs/<tag>.json` for release-specific metadata and fallback metrics
-3. built-in defaults for the Docker image and title
+3. built-in defaults for the Docker image and version-only release title
 
 That keeps the common release flow short while still allowing older training runs to be published
 without editing the scripts.

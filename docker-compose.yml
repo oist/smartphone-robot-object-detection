@@ -1,13 +1,24 @@
+x-training-service: &training-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: mediapipe-model-maker
+  volumes:
+    - .:/object-detection
+  gpus: all
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=all
+    - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 services:
   mediapipe-model-maker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: mediapipe-model-maker
-    volumes:
-      - .:/object-detection
-    gpus: all
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    <<: *training-service
     command: python train.py --export-fp16
+
+  mediapipe-model-maker-3class:
+    <<: *training-service
+    command: python train.py --label-mode three-class --export-fp16
+
+  mediapipe-model-maker-robot-merged:
+    <<: *training-service
+    command: python train.py --label-mode robot-merged --export-fp16

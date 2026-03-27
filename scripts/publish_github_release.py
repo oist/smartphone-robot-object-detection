@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
         description="Create or update a GitHub release from prepared detector assets.",
     )
     parser.add_argument("--tag", required=True, help="Release tag, for example 2.0.0.")
-    parser.add_argument("--title", help="Release title. Defaults to 'Smartphone Robot Detector <tag>'.")
+    parser.add_argument("--title", help="Release title. Defaults to the tag, for example '2.0.0'.")
     parser.add_argument("--repo", default=DEFAULT_REPO, help="GitHub repository in owner/name form.")
     parser.add_argument("--target", default="HEAD", help="Target commitish used when creating a new release.")
     parser.add_argument("--release-dir", default=str(DEFAULT_RELEASE_DIR))
@@ -79,7 +79,7 @@ def main() -> None:
         raise ValueError(f"No release assets found in {release_dir}")
 
     metadata_path = release_dir / "release-metadata.json"
-    release_title = f"Smartphone Robot Detector {args.tag}"
+    release_title = args.tag
     if metadata_path.is_file():
         import json
 
