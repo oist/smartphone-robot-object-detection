@@ -6,6 +6,7 @@ build
 local.properties
 .gradle
 images
+annotations
 labels
 downsampled
 data/

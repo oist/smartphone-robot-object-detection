@@ -23,8 +23,12 @@ The legacy `tflite-model-maker` and `labelImg` flow has been replaced with:
 5. MediaPipe Model Maker retraining.
 6. Packaging the annotated dataset for GitHub Releases.
 
-# Dataset Expectations
-The local source-of-truth dataset layout is:
+# Dataset Storage
+This repository does not version the image set or COCO export in git. The versioned dataset artifact
+is the packaged release asset `dataset.zip`, which contains the images and annotations together as a
+single snapshot.
+
+The local working dataset layout is:
 
 ```text
 images/
@@ -42,8 +46,9 @@ robot-front
 robot-back
 ```
 
-`annotations/coco_detection.json` remains the source-of-truth 3-class export even when training a
-`robot-merged` variant. The merge happens during `prepare_dataset.py`.
+The local COCO export remains the working 3-class annotation file even when training a
+`robot-merged` variant. The merge happens during `prepare_dataset.py`, and the publishable dataset
+snapshot is produced later as `dataset.zip`.
 
 # Starting From Local Images
 The repo is designed to start from local images in [images](/media/HDD/included/code/smartphone-robot/object-detection/images).
@@ -57,7 +62,7 @@ The intended local-first flow is:
 4. Let `X-AnyLabeling` save its per-image JSON files in `./images`.
 5. Export COCO annotations to `./annotations/coco_detection.json`.
 6. Prepare train/validation/test splits and train the model.
-7. Package the annotated dataset into a release-ready zip.
+7. Package the images plus COCO export into a release-ready zip snapshot.
 8. Upload that zip as a GitHub Release asset.
 
 # X-AnyLabeling Workflow
@@ -117,7 +122,8 @@ dataset-root/
   labels.json
 ```
 
-That archive is the expected GitHub Release asset format for later reuse.
+That archive is the expected GitHub Release asset format for later reuse and is the canonical
+versioned dataset snapshot for this project.
 `dataset.zip` is the canonical asset name; `object-detection-dataset.zip` is still accepted as a
 legacy compatibility name when downloading older releases.
 
