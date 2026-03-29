@@ -58,3 +58,13 @@ def select_top_detections_per_class(detections: Iterable[object]) -> dict[str, S
                 best_by_class[class_name] = selected
 
     return best_by_class
+
+
+def filter_detections_by_score(
+    detections_by_class: dict[str, SelectedDetection], *, min_score_exclusive: float
+) -> dict[str, SelectedDetection]:
+    return {
+        class_name: detection
+        for class_name, detection in detections_by_class.items()
+        if detection.score > min_score_exclusive
+    }

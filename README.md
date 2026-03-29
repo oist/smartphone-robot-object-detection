@@ -173,8 +173,12 @@ docker compose run --rm mediapipe-model-maker python scripts/render_test_predict
 
 This uses [`exported_model/model.tflite`](/media/HDD/included/code/smartphone-robot/object-detection/exported_model/model.tflite)
 and writes annotated images to `build/test-previews/`.
-Each rendered box includes the class label and confidence, and only the top-scoring detection per
-class is kept for each image.
+Each rendered box includes the class label and confidence, only the top-scoring detection per class
+is kept for each image, and detections with score `<= 0.5` are omitted.
+
+Example preview:
+
+![Annotated test preview](docs/readme-assets/test-preview-PXL_20260303_055101223.jpg)
 
 # Docker
 Named Docker Compose services are available for the reusable training modes:
@@ -222,6 +226,8 @@ python scripts/publish_dockerhub.py --tag 2.0.0
 ```
 
 The default DockerHub repository is `topher217/smartphone-robot-object-detection`.
+Publish a new image tag after Dockerfile or runtime dependency changes so the published container
+matches the training and preview environment documented here.
 
 # Android Integration
 This repo only covers model preparation and retraining. The Android app should consume the exported

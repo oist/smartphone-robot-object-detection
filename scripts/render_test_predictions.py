@@ -12,7 +12,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from prediction_previews import SelectedDetection, select_top_detections_per_class
+from prediction_previews import (
+    SelectedDetection,
+    filter_detections_by_score,
+    select_top_detections_per_class,
+)
 
 DEFAULT_COLOR_CYCLE = (
     "#D1495B",
@@ -21,6 +25,11 @@ DEFAULT_COLOR_CYCLE = (
     "#4F772D",
     "#6C5CE7",
     "#C44536",
+)
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/local/share/fonts/DejaVuSans.ttf",
+    "DejaVuSans.ttf",
 )
 
 
@@ -51,8 +60,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--score-threshold",
         type=float,
-        default=0.0,
-        help="Minimum score accepted by the detector before per-class selection.",
+        default=0.5,
+        help="Only detections with score greater than this value are rendered.",
     )
     parser.add_argument(
         "--max-results",
@@ -65,6 +74,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Optional cap on the number of images to render.",
+    )
+    parser.add_argument(
+        "--font-size",
+        type=int,
+        default=64,
+        help="Font size used for detection labels.",
     )
     return parser.parse_args()
 
@@ -92,11 +107,15 @@ def color_by_class(class_order: list[str], detected_classes: set[str]) -> dict[s
     }
 
 
-def load_font() -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
-    try:
-        return ImageFont.truetype("DejaVuSans.ttf", 24)
-    except OSError:
-        return ImageFont.load_default()
+def load_font(font_size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
+    for candidate in FONT_CANDIDATES:
+        try:
+            return ImageFont.truetype(candidate, font_size)
+        except OSError:
+            continue
+    raise FileNotFoundError(
+        "Could not load a TrueType font for preview labels. Rebuild the Docker image after installing fonts."
+    )
 
 
 def clamp_box(detection: SelectedDetection, image_width: int, image_height: int) -> tuple[int, int, int, int]:
@@ -115,22 +134,30 @@ def draw_detection(
 ) -> None:
     draw = ImageDraw.Draw(image)
     left, top, right, bottom = clamp_box(detection, image.width, image.height)
-    draw.rectangle((left, top, right, bottom), outline=color, width=6)
+    outline_width = max(6, argsafe_font_size(font) // 6)
+    draw.rectangle((left, top, right, bottom), outline=color, width=outline_width)
 
     label = f"{detection.class_name} {detection.score:.2f}"
     text_bbox = draw.textbbox((0, 0), label, font=font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
+    text_padding_x = max(6, argsafe_font_size(font) // 4)
+    text_padding_y = max(4, argsafe_font_size(font) // 6)
     text_left = left
-    if top - text_height - 12 >= 0:
-        text_top = top - text_height - 12
+    label_height = text_height + (2 * text_padding_y)
+    if top - label_height - 8 >= 0:
+        text_top = top - label_height - 8
     else:
-        text_top = min(image.height - text_height - 8, top + 8)
-    text_right = min(image.width, text_left + text_width + 12)
-    text_bottom = min(image.height, text_top + text_height + 8)
+        text_top = min(image.height - label_height - 8, top + 8)
+    text_right = min(image.width, text_left + text_width + (2 * text_padding_x))
+    text_bottom = min(image.height, text_top + label_height)
 
     draw.rectangle((text_left, text_top, text_right, text_bottom), fill=color)
-    draw.text((text_left + 6, text_top + 4), label, fill="white", font=font)
+    draw.text((text_left + text_padding_x, text_top + text_padding_y), label, fill="white", font=font)
+
+
+def argsafe_font_size(font: ImageFont.ImageFont | ImageFont.FreeTypeFont) -> int:
+    return int(getattr(font, "size", 24))
 
 
 def iter_image_paths(input_dir: Path, limit: int | None) -> list[Path]:
@@ -169,7 +196,7 @@ def render_previews(args: argparse.Namespace) -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     class_order = load_class_order(training_summary_path)
-    font = load_font()
+    font = load_font(args.font_size)
     mp, detector = detector_for(model_path, args)
 
     image_paths = iter_image_paths(input_dir, args.limit)
@@ -179,7 +206,10 @@ def render_previews(args: argparse.Namespace) -> None:
     for image_path in image_paths:
         detection_image = mp.Image.create_from_file(str(image_path))
         result = detector.detect(detection_image)
-        top_detections = select_top_detections_per_class(result.detections)
+        top_detections = filter_detections_by_score(
+            select_top_detections_per_class(result.detections),
+            min_score_exclusive=args.score_threshold,
+        )
 
         rendered = Image.open(image_path).convert("RGB")
         colors = color_by_class(class_order, set(top_detections))
