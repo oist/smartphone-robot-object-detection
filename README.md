@@ -157,6 +157,19 @@ What the wrapper does:
 You can still call [train.py](/media/HDD/included/code/smartphone-robot/object-detection/train.py)
 directly for lower-level control, including `--run-qat` and other training flags.
 
+# Rendering Test Previews
+To inspect the test split visually after training, render the highest-confidence detected box for
+each class onto every test image:
+
+```bash
+docker compose run --rm mediapipe-model-maker python scripts/render_test_predictions.py
+```
+
+This uses [`exported_model/model.tflite`](/media/HDD/included/code/smartphone-robot/object-detection/exported_model/model.tflite)
+and writes annotated images to `build/test-previews/`.
+Each rendered box includes the class label and confidence, and only the top-scoring detection per
+class is kept for each image.
+
 # Docker
 Named Docker Compose services are available for the reusable training modes:
 
