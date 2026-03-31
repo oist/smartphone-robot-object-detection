@@ -23,8 +23,12 @@ The legacy `tflite-model-maker` and `labelImg` flow has been replaced with:
 5. MediaPipe Model Maker retraining.
 6. Packaging the annotated dataset for GitHub Releases.
 
-# Dataset Expectations
-The local source-of-truth dataset layout is:
+# Dataset Storage
+This repository does not version the image set or COCO export in git. The versioned dataset artifact
+is the packaged release asset `dataset.zip`, which contains the images and annotations together as a
+single snapshot.
+
+The local working dataset layout is:
 
 ```text
 images/
@@ -42,8 +46,9 @@ robot-front
 robot-back
 ```
 
-`annotations/coco_detection.json` remains the source-of-truth 3-class export even when training a
-`robot-merged` variant. The merge happens during `prepare_dataset.py`.
+The local COCO export remains the working 3-class annotation file even when training a
+`robot-merged` variant. The merge happens during `prepare_dataset.py`, and the publishable dataset
+snapshot is produced later as `dataset.zip`.
 
 # Starting From Local Images
 The repo is designed to start from local images in [images](/media/HDD/included/code/smartphone-robot/object-detection/images).
@@ -57,7 +62,7 @@ The intended local-first flow is:
 4. Let `X-AnyLabeling` save its per-image JSON files in `./images`.
 5. Export COCO annotations to `./annotations/coco_detection.json`.
 6. Prepare train/validation/test splits and train the model.
-7. Package the annotated dataset into a release-ready zip.
+7. Package the images plus COCO export into a release-ready zip snapshot.
 8. Upload that zip as a GitHub Release asset.
 
 # X-AnyLabeling Workflow
@@ -117,7 +122,8 @@ dataset-root/
   labels.json
 ```
 
-That archive is the expected GitHub Release asset format for later reuse.
+That archive is the expected GitHub Release asset format for later reuse and is the canonical
+versioned dataset snapshot for this project.
 `dataset.zip` is the canonical asset name; `object-detection-dataset.zip` is still accepted as a
 legacy compatibility name when downloading older releases.
 
@@ -156,6 +162,23 @@ What the wrapper does:
 
 You can still call [train.py](/media/HDD/included/code/smartphone-robot/object-detection/train.py)
 directly for lower-level control, including `--run-qat` and other training flags.
+
+# Rendering Test Previews
+To inspect the test split visually after training, render the highest-confidence detected box for
+each class onto every test image:
+
+```bash
+docker compose run --rm mediapipe-model-maker python scripts/render_test_predictions.py
+```
+
+This uses [`exported_model/model.tflite`](/media/HDD/included/code/smartphone-robot/object-detection/exported_model/model.tflite)
+and writes annotated images to `build/test-previews/`.
+Each rendered box includes the class label and confidence, only the top-scoring detection per class
+is kept for each image, and detections with score `<= 0.5` are omitted.
+
+Example preview:
+
+![Annotated test preview](docs/readme-assets/test-preview-PXL_20260303_055101223.jpg)
 
 # Docker
 Named Docker Compose services are available for the reusable training modes:
@@ -203,6 +226,8 @@ python scripts/publish_dockerhub.py --tag 2.0.0
 ```
 
 The default DockerHub repository is `topher217/smartphone-robot-object-detection`.
+Publish a new image tag after Dockerfile or runtime dependency changes so the published container
+matches the training and preview environment documented here.
 
 # Android Integration
 This repo only covers model preparation and retraining. The Android app should consume the exported
